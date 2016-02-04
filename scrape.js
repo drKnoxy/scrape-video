@@ -14,6 +14,7 @@ var Promise = require('promise');
 
 
 var courses = [];
+var config = getConfig();
 
 activate();
 
@@ -23,8 +24,12 @@ function activate() {
     getCourses();
 }
 
+function getConfig() {
+    return jsonfile.readFileSync( __dirname + '/config.json' );
+}
+
 function getCourses() {
-    var uri = ''; //TODO: FILL FROM FILE
+    var uri = config.courses_uri;
     var cursor = {
         pages: 0,         // starts at 1
         page: 1,
@@ -75,13 +80,15 @@ function buildCourseList(uri, cursor) {
             // resolveWithFullResponse: true,
         };
 
-        var promise = http.get(options).then(function logDone(res) {
-            // console.log('--------------------------------');
-            // console.log('%j', res.request.uri.search);
-            return res;
-        });
+        var promise = http.get(options);
 
         promises.push(promise);
+
+        // .then(function logDone(res) {
+        //     console.log('--------------------------------');
+        //     console.log('%j', res.request.uri.search);
+        //     return res;
+        // });
     }
 
 
@@ -89,14 +96,14 @@ function buildCourseList(uri, cursor) {
     return Promise.all(promises)
         .then(function(responses) {
             console.log('promises all done');
+
+            // NOTE: responses contains other data we might want
             var courses = [];
             _.forEach(responses, function(response, i){
-                console.log('merging response ' + i);
-                console.log('%j', response.courses);
-                console.log('---------------------------');
+                jsonfile.writeFile('./tmp/courses_partial-' +i+'.json', response);
                 courses = courses.concat(response.courses);
             });
-            // console.log('returning courses', courses);
+
             jsonfile.writeFile('./tmp/courses.json', courses);
             return courses;
         });
