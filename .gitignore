@@ -1,2 +1,7 @@
+# overall
 ./node_modules
+
+# project specific
+./config.json
+./references
 ./tmp
