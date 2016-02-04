@@ -1,10 +1,14 @@
 #!/usr/bin/env node
 
+// https://github.com/request/request
+// https://www.npmjs.com/package/request-promise
+//
 (function() {
 "use strict";
 
-var fs = require('fs');
 var _ = require('lodash/core');
+var fs = require('fs');
+var jsonfile = require('jsonfile');
 var http = require('request-promise');
 var Promise = require('promise');
 
@@ -20,30 +24,34 @@ function activate() {
 }
 
 function getCourses() {
-    var url = ''; //TODO: FILL FROM FILE
+    var uri = ''; //TODO: FILL FROM FILE
     var cursor = {
         pages: 0,         // starts at 1
-        page: 0,
+        page: 1,
         itemsTotal: 0,
         itemsPerPage: 0,
     };
 
     var courses = [];
 
-    setCursor(url, cursor)
+    setCursor(uri, cursor)
         .then(function() {
-            return buildCourseList(url, cursor.pages);
+            return buildCourseList(uri, cursor);
         })
         .then(function(courses) {
-            console.log(courses);
+            // console.log(courses);
         });
 }
 
-function setCursor(url, cursor) {
-    return http.get(url)
+function setCursor(uri, cursor) {
+    var options = {
+        uri: uri,
+        json: true,
+    };
+
+    return http.get(options)
         .then(function(res) {
-            fs.writeFile('./tmp/res.json', res);
-            res = JSON.parse(res);
+            jsonfile.writeFile('./tmp/setCursor.json', res);
 
             cursor.itemsPerPage = res.courses.length;
             cursor.itemsTotal = res.meta.total;
@@ -52,26 +60,44 @@ function setCursor(url, cursor) {
         });
 }
 
-function buildCourseList(url, pages) {
+function buildCourseList(uri, cursor) {
     var promises = [];
-    for (var page = 1; page < pages+1; page++) {
-        var promise = $.get(url, {currentPage: page, sortLabel: "new"}).then(logDone);
+    var page = cursor.page;
+    for (page; page < cursor.pages + 1; page++) {
+        console.log('starting page ' + page);
+        var options = {
+            uri: uri,
+            qs: {
+                currentPage: page,
+                sortLabel: "new", //
+            },
+            json: true,
+            // resolveWithFullResponse: true,
+        };
+
+        var promise = http.get(options).then(function logDone(res) {
+            // console.log('--------------------------------');
+            // console.log('%j', res.request.uri.search);
+            return res;
+        });
+
         promises.push(promise);
     }
-    function logDone(res) {
-        console.log('course list '+page+' done');
-        return res;
-    }
+
 
     // The apply lets us pass in an array
     return Promise.all(promises)
         .then(function(responses) {
-            console.log('promises all done', responses);
+            console.log('promises all done');
             var courses = [];
-            _.forEach(responses, function(response){
+            _.forEach(responses, function(response, i){
+                console.log('merging response ' + i);
+                console.log('%j', response.courses);
+                console.log('---------------------------');
                 courses = courses.concat(response.courses);
             });
-            console.log('returning courses', courses);
+            // console.log('returning courses', courses);
+            jsonfile.writeFile('./tmp/courses.json', courses);
             return courses;
         });
 }
