@@ -1,7 +1,7 @@
 # overall
-./node_modules
+/node_modules
 
 # project specific
-./config.json
-./references
-./tmp
+/config.json
+/references
+/tmp
